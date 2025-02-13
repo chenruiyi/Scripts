@@ -188,7 +188,7 @@ else
     echo -e "\n[信息] 将自动创建一条 A 记录指向本机公网 IPv4: $PUBLIC_IP\n"
 
     # 可以使用 sing-box 生成一个 UUID 作为子域名，也可使用随机字符串
-    AUTO_SUBDOMAIN=$(sing-box generate uuid)
+    AUTO_SUBDOMAIN=$(sing-box generate rand 8 --hex)
     echo "[信息] 自动生成的子域名前缀: $AUTO_SUBDOMAIN"
 
     CREATE_DNS=$(curl --silent --location "https://api.cloudflare.com/client/v4/zones/${CF_Zone_ID}/dns_records" \
