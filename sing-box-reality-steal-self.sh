@@ -3,6 +3,11 @@
 # 一键式可交互脚本：安装 Nginx、sing-box、acme.sh 并自动申请证书 & 配置 Reality
 # 适用于 Debian 11/12，Ubuntu 20.04/22.04/24.04/24.10
 #
+# 优化点：
+# 1. 如果系统未安装 lsb_release，则自动安装。
+# 2. 若用户未手动创建 DNS 解析记录，则通过 Cloudflare API 自动创建。
+# 3. 仅申请精确域名证书（非泛域名）。
+# 4. VLESS Reality 分享链接根据服务器地理位置，生成带“地区-UUID”的节点名称。
 
 set -e
 
@@ -25,7 +30,7 @@ dist_codename=$(lsb_release -cs)
 
 echo -e "\n[信息] 检测到系统：$dist_name ($dist_codename)\n"
 
-# ------ 根据系统发行版设置并安装 Nginx ------
+# ======== 函数：在 Debian/Ubuntu 上安装 Nginx 官方稳定版仓库 ========
 function install_nginx_repo_debian() {
     # 安装 Nginx 依赖
     apt update
@@ -68,6 +73,7 @@ function install_nginx_repo_ubuntu() {
         | tee /etc/apt/preferences.d/99nginx
 }
 
+# ======== 根据系统发行版处理 Nginx 安装 ========
 case "$dist_name" in
     debian)
         # 仅支持 bullseye/bookworm，但也允许继续尝试
@@ -93,7 +99,7 @@ echo -e "\n[信息] 开始安装 (或更新) Nginx...\n"
 apt update
 apt install -y nginx
 
-# ------ 安装 sing-box (正式版) ------
+# ======== 安装 sing-box (正式版) ========
 echo -e "\n[信息] 开始安装 sing-box...\n"
 mkdir -p /etc/apt/keyrings
 curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc
@@ -104,7 +110,7 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/sagerne
 apt-get update
 apt-get install -y sing-box
 
-# ------ 安装 acme.sh ------
+# ======== 安装 acme.sh ========
 echo -e "\n[交互] 请输入用于申请证书的邮箱地址 (例如: admin@example.com)："
 read -rp "Email: " ACME_EMAIL
 if [ -z "$ACME_EMAIL" ]; then
@@ -118,7 +124,7 @@ curl https://get.acme.sh | sh -s email="$ACME_EMAIL"
 # 让当前 Shell 会话识别 acme.sh
 . ~/.acme.sh/acme.sh.env
 
-# ------ 获取 Cloudflare API Token、Zone ID、域名 ------
+# ======== 获取 Cloudflare API Token & Zone ID ========
 echo -e "\n[交互] 请输入 Cloudflare API Token (仅需对单一 DNS zone 具有编辑权限)："
 read -rp "CF_Token: " CF_Token
 if [ -z "$CF_Token" ]; then
@@ -136,18 +142,88 @@ fi
 export CF_Token
 export CF_Zone_ID
 
-echo -e "\n[交互] 请输入需要申请证书的域名 (例如: example.com)："
-read -rp "Domain: " DOMAIN
-if [ -z "$DOMAIN" ]; then
-    echo -e "\n[错误] 域名不能为空，脚本中止。\n"
-    exit 1
+# ======== 获取本机公网 IPv4 & 地理信息(后面自动/手动DNS都需要) ========
+echo -e "\n[信息] 获取本机公网 IPv4 和地理信息...\n"
+GEO_INFO=$(curl -4 -s ping0.cc/geo || echo "")
+# geo API 的 4 行格式一般为：
+# 1) IP地址
+# 2) 地理位置信息（含国家/省/市）
+# 3) AS号
+# 4) 商家名称
+
+PUBLIC_IP=$(echo "$GEO_INFO" | sed -n '1p')
+if [ -z "$PUBLIC_IP" ]; then
+  PUBLIC_IP="0.0.0.0"
 fi
 
-# ------ 申请证书：仅精确域名 ------
+LOCATION_LINE=$(echo "$GEO_INFO" | sed -n '2p')
+LOCATION_LABEL="其他"
+if [[ "$LOCATION_LINE" == *"香港"* ]]; then
+    LOCATION_LABEL="香港"
+elif [[ "$LOCATION_LINE" == *"台湾"* ]]; then
+    LOCATION_LABEL="台湾"
+elif [[ "$LOCATION_LINE" == *"日本"* ]]; then
+    LOCATION_LABEL="日本"
+elif [[ "$LOCATION_LINE" == *"新加坡"* ]]; then
+    LOCATION_LABEL="新加坡"
+elif [[ "$LOCATION_LINE" == *"美国"* ]]; then
+    LOCATION_LABEL="美国"
+fi
+
+# ======== 询问用户是否已手动设置 DNS 记录 ========
+echo -e "\n[交互] 是否已经在 Cloudflare DNS 中手动添加了解析记录？(y/N)"
+read -rp "输入 y 或 n [默认 n]: " DNS_MANUAL
+DNS_MANUAL=${DNS_MANUAL,,}  # 转小写
+
+if [[ "$DNS_MANUAL" == "y" || "$DNS_MANUAL" == "yes" ]]; then
+    # 用户已手动添加DNS记录，则直接让用户输入域名
+    echo -e "\n[交互] 请输入需要申请证书的域名 (例如: example.com)："
+    read -rp "Domain: " DOMAIN
+    if [ -z "$DOMAIN" ]; then
+        echo -e "\n[错误] 域名不能为空，脚本中止。\n"
+        exit 1
+    fi
+else
+    # 用户未手动添加DNS记录，则脚本自动调用 Cloudflare API 创建一条 A 记录
+    echo -e "\n[信息] 将自动创建一条 A 记录指向本机公网 IPv4: $PUBLIC_IP\n"
+
+    # 可以使用 sing-box 生成一个 UUID 作为子域名，也可使用随机字符串
+    AUTO_SUBDOMAIN=$(sing-box generate uuid)
+    echo "[信息] 自动生成的子域名前缀: $AUTO_SUBDOMAIN"
+
+    CREATE_DNS=$(curl --silent --location "https://api.cloudflare.com/client/v4/zones/${CF_Zone_ID}/dns_records" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer ${CF_Token}" \
+      --data "{
+        \"content\": \"${PUBLIC_IP}\",
+        \"name\": \"${AUTO_SUBDOMAIN}\",
+        \"proxied\": false,
+        \"ttl\": 1,
+        \"type\": \"A\"
+      }")
+
+    # 判断请求是否成功
+    SUCCESS=$(echo "$CREATE_DNS" | grep -Po '"success":\s*\K[^,}]*')
+    if [[ "$SUCCESS" != "true" ]]; then
+        echo -e "\n[错误] Cloudflare API 添加 DNS 记录失败，返回信息：\n$CREATE_DNS"
+        exit 1
+    fi
+
+    # 解析出最终生成的域名
+    DOMAIN=$(echo "$CREATE_DNS" | grep -Po '"name":\s*"\K[^"]+')
+    if [ -z "$DOMAIN" ]; then
+        echo -e "\n[错误] 无法从 Cloudflare API 响应中解析出域名：\n$CREATE_DNS"
+        exit 1
+    fi
+
+    echo -e "\n[信息] 已成功添加 DNS 记录：$DOMAIN -> $PUBLIC_IP\n"
+fi
+
+# ======== 申请证书：仅针对 DOMAIN（精确域名） ========
 echo -e "\n[信息] 开始使用 acme.sh 申请证书...\n"
 ~/.acme.sh/acme.sh --issue --dns dns_cf -d "$DOMAIN"
 
-# ------ 证书安装位置交互 ------
+# ======== 证书安装位置交互 ========
 echo -e "\n[交互] 请输入保存私钥 (key) 文件的路径 (默认: /etc/ssl/private/key.pem)："
 read -rp "Key Path: " KEY_PATH
 [ -z "$KEY_PATH" ] && KEY_PATH="/etc/ssl/private/key.pem"
@@ -164,7 +240,7 @@ echo -e "\n[信息] 安装证书并配置自动续期...\n"
   --fullchain-file "$CERT_PATH" \
   --reloadcmd "systemctl force-reload nginx"
 
-# ------ 替换 /etc/nginx/nginx.conf ------
+# ======== 替换 /etc/nginx/nginx.conf ========
 echo -e "\n[信息] 更新 /etc/nginx/nginx.conf 配置...\n"
 NGINX_CONF="/etc/nginx/nginx.conf"
 
@@ -217,7 +293,7 @@ http {
 
     server {
         listen                     127.0.0.1:8601 ssl;
-        http2                      on;
+        http2                      on; # 若 Nginx < 1.25.1，可写为 "listen 127.0.0.1:8601 ssl http2;"
 
         set_real_ip_from           127.0.0.1;
         real_ip_header             proxy_protocol;
@@ -269,7 +345,7 @@ EOF
 
 systemctl restart nginx
 
-# ------ 配置 sing-box ------
+# ======== 配置 sing-box ========
 echo -e "\n[信息] 配置 /etc/sing-box/config.json...\n"
 SING_CONF="/etc/sing-box/config.json"
 rm -f "$SING_CONF"
@@ -332,37 +408,9 @@ cat > "$SING_CONF" <<EOF
 EOF
 
 systemctl enable sing-box
-systemctl restart sing-box
+systemctl start sing-box
 
-# ------ 获取本机公网 IPv4 & 地理位置 ------
-echo -e "\n[信息] 获取本机公网 IPv4 和地理信息...\n"
-GEO_INFO=$(curl -4 -s ping0.cc/geo || echo "")
-# GEO_INFO 应该包含 4 行，例如：
-#   1) 45.150.xxx.xxx
-#   2) 美国 华盛顿州 西雅圖 — xxx
-#   3) ASxxxxx
-#   4) ProviderName
-
-PUBLIC_IP=$(echo "$GEO_INFO" | sed -n '1p')
-if [ -z "$PUBLIC_IP" ]; then
-  PUBLIC_IP="0.0.0.0"
-fi
-
-LOCATION_LINE=$(echo "$GEO_INFO" | sed -n '2p')
-LOCATION_LABEL="其他"
-if [[ "$LOCATION_LINE" == *"香港"* ]]; then
-    LOCATION_LABEL="香港"
-elif [[ "$LOCATION_LINE" == *"台湾"* ]]; then
-    LOCATION_LABEL="台湾"
-elif [[ "$LOCATION_LINE" == *"日本"* ]]; then
-    LOCATION_LABEL="日本"
-elif [[ "$LOCATION_LINE" == *"新加坡"* ]]; then
-    LOCATION_LABEL="新加坡"
-elif [[ "$LOCATION_LINE" == *"美国"* ]]; then
-    LOCATION_LABEL="美国"
-fi
-
-# ------ 输出最终配置信息 ------
+# ======== 输出最终配置信息 & 生成 VLESS Reality 链接 ========
 echo -e "\n===================="
 echo -e "sing-box 已启动完成！\n"
 echo "配置参数回顾："
@@ -375,7 +423,7 @@ echo "  - Key Path:     $KEY_PATH"
 echo "  - Cert Path:    $CERT_PATH"
 echo -e "====================\n"
 
-# 生成 VLESS Reality 链接，节点名称使用「地区-UUID」
+# 以 “地区-UUID” 作为节点后缀
 VLESS_LINK="vless://${UUID}@${PUBLIC_IP}:443?encryption=none&security=reality&type=tcp&sni=${DOMAIN}&fp=chrome&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&flow=xtls-rprx-vision#${LOCATION_LABEL}-${UUID}"
 
 echo -e "[信息] 复制以下链接到客户端使用：\n"
