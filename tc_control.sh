@@ -13,32 +13,32 @@ MODE=$1
 case "$MODE" in
     set)
         echo "==> 更新 apt 缓存并安装 ifstat 工具..."
-        sudo apt update && sudo apt install -y ifstat
+        apt update && apt install -y ifstat
 
         echo "==> 删除现有流量控制配置（若存在）..."
-        sudo tc qdisc del dev eth0 root 2>/dev/null
+        tc qdisc del dev eth0 root 2>/dev/null
 
         echo "==> 添加根队列（HTB）控制器..."
-        sudo tc qdisc add dev eth0 root handle 1: htb default 12
+        tc qdisc add dev eth0 root handle 1: htb default 12
 
         echo "==> 添加带宽限制类：设置上传和下载速率均为 170Mbps..."
-        sudo tc class add dev eth0 parent 1: classid 1:12 htb rate 170Mbit ceil 170Mbit burst 1572b cburst 1572b
+        tc class add dev eth0 parent 1: classid 1:12 htb rate 170Mbit ceil 170Mbit burst 1572b cburst 1572b
 
         echo "==> 当前流量控制配置状态："
         tc -s qdisc
 
         echo "==> 查看接口流量统计（netstat）："
-        sudo netstat -i
+        netstat -i
 
         echo "==> 查看当前网络连接（ss）："
-        sudo ss -tuln
+        ss -tuln
 
         echo "==> 开始实时监控 eth0 流量 (ifstat，每秒刷新；按 Ctrl+C 退出)..."
         ifstat -i eth0 1
         ;;
     clear)
         echo "==> 清除流量控制配置，恢复默认设置..."
-        sudo tc qdisc del dev eth0 root 2>/dev/null
+        tc qdisc del dev eth0 root 2>/dev/null
         echo "流量控制已清除，接口恢复默认配置。"
         ;;
     *)
