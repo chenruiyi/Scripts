@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EdgeNet · 分布式内容加速与数据洞察平台</title>
+<style>
+    :root{
+        --primary:#0b6efd;
+        --secondary:#00b894;
+        --light:#f5f7fa;
+        --gray:#e9ecef;
+        --dark:#1e293b;
+        --radius:14px;
+        --shadow:0 4px 16px rgba(0,0,0,.08);
+        --font-heading:"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:var(--font-heading);line-height:1.6;background:#fff;color:#333;padding-bottom:5rem}
+    header{
+        background:linear-gradient(135deg,var(--primary),var(--secondary));
+        color:#fff;
+        padding:3rem 1.5rem 4rem;
+        text-align:center;
+        border-bottom-left-radius:var(--radius);
+        border-bottom-right-radius:var(--radius);
+        box-shadow:var(--shadow)
+    }
+    header h1{font-size:2.4rem;font-weight:700;margin-bottom:.5rem}
+    header h2{font-size:1.25rem;font-weight:400;opacity:.9}
+    main{max-width:1080px;margin:auto;padding:2rem 1rem}
+    section{margin-bottom:3rem}
+    section>h3{
+        font-size:1.6rem;
+        color:var(--dark);
+        margin-bottom:1rem;
+        border-left:6px solid var(--primary);
+        padding-left:.6rem
+    }
+    .card{
+        background:var(--light);
+        border:1px solid var(--gray);
+        border-radius:var(--radius);
+        padding:1rem 1.25rem;
+        margin-bottom:1rem;
+        box-shadow:var(--shadow)
+    }
+    ul,ol{padding-left:1.4rem;margin-top:.5rem}
+    li{margin:.4rem 0}
+    /* 流程图 */
+    .flow{
+        display:flex;
+        flex-wrap:wrap;
+        gap:1rem;
+        align-items:center;
+        justify-content:center;
+        margin-top:1.5rem
+    }
+    .step{
+        background:var(--secondary);
+        color:#fff;
+        padding:1rem 1.4rem;
+        border-radius:var(--radius);
+        position:relative;
+        font-weight:500;
+        min-width:140px;
+        text-align:center;
+        box-shadow:var(--shadow)
+    }
+    .step:not(:last-child)::after{
+        content:"➔";
+        position:absolute;
+        right:-1.4rem;
+        top:50%;
+        transform:translateY(-50%);
+        font-size:1.4rem;
+        color:var(--dark)
+    }
+    /* 未来趋势 辐射图 */
+    .future{
+        display:flex;
+        flex-wrap:wrap;
+        gap:1rem;
+        justify-content:center;
+        margin-top:1rem
+    }
+    .future .branch{
+        background:var(--primary);
+        color:#fff;
+        border-radius:var(--radius);
+        padding:.75rem 1rem;
+        min-width:160px;
+        text-align:center;
+        box-shadow:var(--shadow);
+        position:relative
+    }
+    .future .branch::before{
+        content:"";
+        width:2px;height:24px;
+        background:var(--primary);
+        position:absolute;
+        top:-24px;left:50%;
+        transform:translateX(-50%)
+    }
+    /* FAQ */
+    details{background:var(--light);border:1px solid var(--gray);border-radius:var(--radius);margin:.6rem 0;padding:1rem}
+    summary{cursor:pointer;font-weight:600}
+    /* 底部 */
+    footer{
+        text-align:center;
+        font-size:.9rem;
+        padding:2rem 1rem 3rem;
+        color:#666
+    }
+    footer ul{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:1.2rem;justify-content:center;margin-top:.8rem}
+    footer li{display:flex;align-items:center;gap:.4rem}
+</style>
+</head>
+<body>
+
+<header>
+    <h1>EdgeNet 分布式内容加速平台</h1>
+    <h2>高速 · 安全 · 智能的数据与内容交付解决方案</h2>
+</header>
+
+<main>
+    <!-- 基础概念 -->
+    <section>
+        <h3>基础概念 / 核心定义</h3>
+        <div class="card">
+            <p><strong>EdgeNet</strong> 是一套 <em>边缘节点 + 智能路由 + 数据洞察</em> 的综合云平台，旨在通过全球化 POP 节点为应用提供<span style="color:var(--primary);font-weight:600">毫秒级</span>内容加速与实时数据分析。</p>
+        </div>
+    </section>
+
+    <!-- 主要特点 -->
+    <section>
+        <h3>主要特点 / 关键信息</h3>
+        <ul>
+            <li>🌐 全球 300+ 边缘节点，智能就近分发</li>
+            <li>⚡ HTTP/3 + QUIC 支持，实现超低延迟</li>
+            <li>🔒 内置零信任安全网关，抵御 DDoS & WAF 防护</li>
+            <li>📊 实时流日志与 AI 异常检测</li>
+            <li>🛠️ 一键集成对象存储、Serverless 与 CI/CD</li>
+        </ul>
+    </section>
+
+    <!-- 工作原理 -->
+    <section>
+        <h3>工作原理 / 机制</h3>
+        <ol>
+            <li>用户请求首先被 DNS 智能解析至最近的边缘节点。</li>
+            <li>边缘节点缓存或回源获取内容，同时执行协议优化。</li>
+            <li>安全模块实时检查恶意流量，过滤潜在威胁。</li>
+            <li>日志流入实时分析引擎，输出洞察与警报。</li>
+        </ol>
+    </section>
+
+    <!-- 流程图 -->
+    <section>
+        <h3>部署流程可视化</h3>
+        <div class="flow">
+            <div class="step">注册账号</div>
+            <div class="step">接入域名</div>
+            <div class="step">配置路由策略</div>
+            <div class="step">启用安全模块</div>
+            <div class="step">实时监控</div>
+        </div>
+    </section>
+
+    <!-- 应用场景 -->
+    <section>
+        <h3>应用 / 场景 / 案例</h3>
+        <div class="card" style="background:#e8f9f1">
+            <h4>视频点播</h4>
+            <p>提供自适应码率与边缘转码，高并发秒开体验。</p>
+        </div>
+        <div class="card" style="background:#eef6ff">
+            <h4>电商闪购</h4>
+            <p>高峰流量自动扩缩容，确保活动页面稳定在线。</p>
+        </div>
+        <div class="card" style="background:#fff8e6">
+            <h4>实时游戏</h4>
+            <p>延迟 < 50ms，提升多人对战交互流畅度。</p>
+        </div>
+    </section>
+
+    <!-- 未来展望 -->
+    <section>
+        <h3>未来展望 / 趋势</h3>
+        <div class="future">
+            <div class="branch">边缘 AI 推理</div>
+            <div class="branch">量子安全加密</div>
+            <div class="branch">IPv6 全链路</div>
+            <div class="branch">绿色低碳算力</div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section>
+        <h3>常见问题解答 (FAQ)</h3>
+        <details>
+            <summary>EdgeNet 支持哪些证书管理？</summary>
+            <p>平台内置 Let's Encrypt 与自定义证书上传，自动续期、自动灰度替换。</p>
+        </details>
+        <details>
+            <summary>如何计费？</summary>
+            <p>按带宽或按流量计费可选，精确到 GB 级，支持月结与预充值。</p>
+        </details>
+        <details>
+            <summary>能否与现有 CI/CD 流程集成？</summary>
+            <p>提供 GitHub Actions、GitLab Runner、Jenkins Plugin 等多种接入方式。</p>
+        </details>
+    </section>
+</main>
+
+<footer>
+    <p>© 2025 EdgeNet Cloud. All rights reserved.</p>
+    <ul>
+        <li>🔗 <a href="#" target="_blank">平台状态</a></li>
+        <li>📚 <a href="#" target="_blank">开发者文档</a></li>
+        <li>💬 <a href="#" target="_blank">社区论坛</a></li>
+        <li>✉️ <a href="#" target="_blank">联系我们</a></li>
+    </ul>
+</footer>
+
+</body>
+</html>
